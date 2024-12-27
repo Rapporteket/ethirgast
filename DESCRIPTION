@@ -4,8 +4,7 @@ Title: Ethiopian Registry for Gastrointestinal Surgery (ETHIRGAST)
 Version: 0.1.0
 Author: Kevin Thon
 Maintainer: Kevin Thon <kevin.thon@gmail.com>
-Description: This is a package for producing graphs and tables for ETHIRGAST in
-a Shiny application
+Description: This is a package for producing graphs and tables for ETHIRGAST in a Shiny application
 License: GPL
 Encoding: UTF-8
 LazyData: true
