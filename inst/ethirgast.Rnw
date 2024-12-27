@@ -1,0 +1,162 @@
+\documentclass[a4paper]{article} % ,twoside
+% \usepackage[norsk]{babel}
+% \usepackage[utf8x]{inputenc}
+% \usepackage{subfig}
+% \usepackage{pdfpages}
+% \usepackage{booktabs}
+% \usepackage{caption}
+% \usepackage{amssymb}
+% \usepackage[a4paper]{geometry}
+\usepackage[pdftex, colorlinks, linkcolor=lysblaa, urlcolor=lysblaa]{hyperref}
+
+\title{Ethirgast}
+% \author{Ethirgast}
+
+%setter grå skrift fremfort sort
+\usepackage{xcolor}
+\usepackage{graphicx}
+% \pagestyle{myheadings}
+% \definecolor{lysblaa}{rgb}{0.27,0.51,0.71}
+% \definecolor{moerkgraa}{rgb}{0.25,0.25,0.25}
+% \color{moerkgraa}
+
+<<'initOpts',include=FALSE>>=
+knitr::opts_chunk$set(warnings=FALSE,echo=FALSE)
+knitr::opts_knit$set(root.dir = './')
+@
+
+
+<<LastData, include=FALSE, cache=FALSE>>=
+# setwd('c:/GIT/nnrr/doc/')
+rm(list=ls())
+# library(nnrr)
+library(dplyr)
+# library(tidyr)
+options(dplyr.summarise.inform = FALSE)
+
+centre <- read.csv("~/softlinks/mydata/ethirgast/centre_202405131159.csv")
+mce <- read.csv("~/softlinks/mydata/ethirgast/mce_202405131200.csv")
+ninetydays <- read.csv("~/softlinks/mydata/ethirgast/ninetydays_202405131200.csv")
+patient <- read.csv("~/softlinks/mydata/ethirgast/patient_202405131201.csv")
+readmission <- read.csv("~/softlinks/mydata/ethirgast/readmission_202405131201.csv")
+registration <- read.csv("~/softlinks/mydata/ethirgast/registration_202405131201.csv")
+
+regdata_all <- registration %>%
+  filter(CENTREID == 1) %>%
+  merge(readmission, by = "MCEID",
+        suffixes = c("", "_READMISSION"),
+        all.x = TRUE) %>%
+  merge(ninetydays, by = "MCEID",
+        suffixes = c("", "_READMISSION90"),
+        all.x = TRUE) %>%
+  merge(mce[,c("MCEID", "PATIENT_ID")], by = "MCEID",
+        all.x = TRUE) %>%
+  merge(patient[,c("ID", "BIRTH_DATE", "GENDER")],
+        by.x = "PATIENT_ID", by.y = "ID",
+        all.x = TRUE) %>%
+  mutate(PatientAge = lubridate::year(lubridate::as.period(lubridate::interval(
+    start = BIRTH_DATE, end = OPERATION_DATE))))
+
+regdata <- regdata_all %>%
+  filter(STATUS == 1)
+
+regdata <- regdata %>%
+  mutate(
+    operation_group = case_when(
+      (substr(NCSP, 1, 3) == "JFB" |
+         (substr(NCSP, 1, 3) == "JFB" & (substr(NCSP, 4, 5) %in% 20:64))) ~ "Colonic resection",
+      substr(NCSP, 1, 3) == "JGB" ~ "Rectal resection",
+      substr(NCSP, 1, 3) == "JCC" ~ "Oesofagus resection",
+      substr(NCSP, 1, 3) %in% c("JDC", "JDD") ~ "Ventricle resection",
+      substr(NCSP, 1, 3) %in% c("JJB") ~ "Liver resection",
+      substr(NCSP, 1, 5) %in% c("JLC30","JLC31") ~ "Whipple's procedure",
+      substr(NCSP, 1, 5) %in% c('JLC10','JLC11', 'JLC00',
+                                'JLC20','JLC40', 'JLC50', 'JLC96') ~ "Distal and other pancreatic"
+    ),
+    operation_group = ifelse(is.na(operation_group), "Other", operation_group),
+    OPERATION_DATE = as.Date(OPERATION_DATE),
+    DISCHARGE_DATE = as.Date(DISCHARGE_DATE),
+    IN_HOUSE_DEATH_DATE = as.Date(IN_HOUSE_DEATH_DATE)
+  )
+
+figstr <- 0.61
+tmp <- Sys.setlocale(category = "LC_ALL", locale = "nb_NO.UTF-8")
+
+figfolder <- paste0("~/softlinks/mydata/ethirgast/first_report/")
+if (!dir.exists(figfolder)) {
+  dir.create(figfolder)
+}
+tabfolder <- paste0("~/softlinks/mydata/ethirgast/first_report/")
+if (!dir.exists(tabfolder)) {
+  dir.create(tabfolder)
+}
+@
+
+\begin{document}
+\maketitle
+
+This document contains some summary statistics for Ethirgast. It will be expanded as
+the number of registrations increase.
+
+<<'Fig. Age distribution', include=FALSE, echo=FALSE, eval=T>>=
+outfile <- "PatientAge.pdf"
+outfile <- paste0(figfolder, outfile)
+gr <- c(0, seq(20, 80, 10)+1, 120)
+regdata$VariabelGr <- cut(regdata$PatientAge, breaks=gr, include.lowest=TRUE, right=FALSE)
+grtxt <- c('0-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '80+')
+AntHoved <- table(regdata[, c("GENDER", "VariabelGr")])
+NHoved <- rowSums(AntHoved)
+FigTypUt <- rapFigurer::figtype(outfile=outfile, fargepalett="BlaaOff", pointsizePDF=12)
+farger <- FigTypUt$farger
+ymax <- max(AntHoved,na.rm=T)*1.25
+pos <- barplot(AntHoved, beside=TRUE, las=1, ylab="Number of patients",
+               sub="Age group",
+               col=farger[c(1,2)], border='white', ylim=c(0, ymax), xaxt='n')
+mtext(at=colMeans(pos), grtxt, side=1, las=1, cex=1, adj=0.5, line=0.5)
+legend('topright', c(paste0('Male, N=', NHoved[1]), paste0('Female, N=', NHoved[2])), bty='n',
+       fill=farger[c(1,2)], border=NA, ncol=1, cex=1)
+title(main = "Age at time of operation", line=1, font.main=1, cex.main=1.3)
+if ( outfile != '') {dev.off()}
+@
+
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\Sexpr{figstr}\textwidth]{\Sexpr{figfolder}PatientAge.pdf}
+\caption{Number of completed registrations grouped by age and gender}
+\end{figure}
+
+<<'Table: Number of registrations', results='asis', echo=FALSE>>=
+
+Tabell <- as.data.frame(table(regdata$operation_group, useNA = 'ifany')) %>%
+  arrange(-Freq)
+names(Tabell) <- c("Operation", "N")
+
+print(xtable::xtable(Tabell, digits=0,
+                     caption='Completed registrations by operation group'),
+      include.rownames=FALSE)
+
+reg_overview <- registration %>% filter(CENTREID == 1) %>% summarise("Forms in total" = n(),
+                                                                     "Draft forms" = sum(STATUS==0),
+                                                                     "Completed forms" = sum(STATUS==1)) %>%
+  bind_rows(readmission %>% filter(CENTREID == 1) %>% summarise("Forms in total" = n(),
+                                                                "Draft forms" = sum(STATUS==0),
+                                                                "Completed forms" = sum(STATUS==1))) %>%
+  bind_rows(ninetydays %>% filter(CENTREID == 1) %>% summarise("Forms in total" = n(),
+                                                               "Draft forms" = sum(STATUS==0),
+                                                               "Completed forms" = sum(STATUS==1)))
+
+reg_overview$Formtype <- c("registration", "readmission", "ninetydays")
+reg_overview <- reg_overview[,c("Formtype", "Forms in total", "Draft forms", "Completed forms")]
+
+print(xtable::xtable(reg_overview, digits=0,
+                     caption='Registration by registration status'),
+      include.rownames=FALSE)
+
+@
+
+
+
+
+
+\end{document}

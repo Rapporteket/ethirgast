@@ -1,0 +1,8 @@
+
+ethirgast:
+  host: db
+  name: EthirgastReportDataStaging
+  user: root
+  pass: root
+  disp: ForNorgastDevOnly
+
