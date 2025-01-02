@@ -157,13 +157,13 @@ calculate_distribution  <- function(
 #'
 #' Lager søylediagram
 #'
-#' @inheritParams NorgastBeregnAndeler
+#' @inheritParams calculate_distribution
 #'
 #' @return En figur med søylediagram
 #'
 #' @export
 #'
-NorgastPlotAndeler  <- function(PlotParams, outfile='', utvalgTxt,
+plot_distribution  <- function(PlotParams, outfile='', utvalgTxt,
                                 Andeler, Antall, enhetsUtvalg, shtxt,
                                 fargepalett="BlaaOff") {
 

@@ -119,6 +119,8 @@ filter_regdata <- function(RegData,
     )
 
 
-  UtData <- list(RegData=RegData, utvalgTxt=utvalgTxt, fargepalett=fargepalett) #GronnHNpms624,
+  UtData <- list(RegData=RegData,
+                 utvalgTxt=utvalgTxt,
+                 fargepalett=fargepalett) #GronnHNpms624,
   return(invisible(UtData))
 }

@@ -11,7 +11,7 @@ startpage_ui <- function(id){
             div(class = "panel-body",style = "background-color:#F0F0F0",
                 div(class="panel-text",
                     br(),
-                    h4('Tou have now entered the report service for ETHIRGAST.
+                    h4('You have now entered the report service for ETHIRGAST.
                     Here you will find a collection of figures and tables which
                     display relevant results based on the data collected in
                     ETHIRGAST.'),

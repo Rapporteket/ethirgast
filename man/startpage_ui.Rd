@@ -2,10 +2,10 @@
 % Please edit documentation in R/startpage.R
 \name{startpage_ui}
 \alias{startpage_ui}
-\title{UI-part av startpage for ETHIRGASTs shiny application}
+\title{UI-part av startpage for ETHIRGAST's shiny application}
 \usage{
 startpage_ui(id)
 }
 \description{
-UI-part av startpage for ETHIRGASTs shiny application
+UI-part av startpage for ETHIRGAST's shiny application
 }
