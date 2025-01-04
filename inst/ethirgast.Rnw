@@ -43,10 +43,16 @@ options(dplyr.summarise.inform = FALSE)
 
 centre <- rapbase::loadRegData("ethirgast", "SELECT * FROM centre")
 mce <- rapbase::loadRegData("ethirgast", "SELECT * FROM mce")
-ninetydays <- rapbase::loadRegData("ethirgast", "SELECT * FROM ninetydays")
+ninetydays <-
+  rapbase::loadRegData("ethirgast", "SELECT * FROM ninetydays") %>%
+  filter(CENTREID == 1)
 patient <- rapbase::loadRegData("ethirgast", "SELECT * FROM patient")
-readmission <- rapbase::loadRegData("ethirgast", "SELECT * FROM readmission")
-registration <- rapbase::loadRegData("ethirgast", "SELECT * FROM registration")
+readmission <-
+  rapbase::loadRegData("ethirgast", "SELECT * FROM readmission")%>%
+  filter(CENTREID == 1)
+registration <-
+  rapbase::loadRegData("ethirgast", "SELECT * FROM registration") %>%
+  filter(CENTREID == 1)
 
 regdata_all <- registration %>%
   dplyr::filter(CENTREID == 1) %>%
@@ -179,8 +185,22 @@ print(xtable::xtable(reg_overview, digits=0,
 
 @
 
+<<'Table: Completeness of variables', results='asis', echo=FALSE>>=
+num_na <- function(x) {sum(is.na(x))}
+
+tmp <- registration %>%
+  dplyr::filter(STATUS==1) %>%
+  summarise(across(everything()), list(num_na))
+
+tmp <- registration %>%
+  dplyr::filter(STATUS==1) %>%
+  apply(2, function(x) {sum(is.na(x))/length(x)*100}) %>%
+  as.data.frame() %>%
+  round(1)
 
 
 
+
+@
 
 \end{document}
