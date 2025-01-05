@@ -8,4 +8,16 @@ Description: This is a package for producing graphs and tables for ETHIRGAST in 
 License: GPL
 Encoding: UTF-8
 LazyData: true
+Depends: R (>= 3.6.0)
+Imports:
+  xtable,
+  rapbase,
+  rapFigurer,
+  dplyr,
+  lubridate,
+  tidyr,
+  janitor
+Remotes:
+  Rapporteket/rapbase@*release,
+  Rapporteket/rapFigurer
 RoxygenNote: 7.3.2

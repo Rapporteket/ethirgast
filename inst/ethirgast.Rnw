@@ -109,6 +109,8 @@ if (!dir.exists(tabfolder)) {
 \begin{document}
 \maketitle
 
+\section{Registrations in Ethirgast}
+
 This document contains some summary statistics for Ethirgast. It will be expanded as
 the number of registrations increase.
 
@@ -185,22 +187,176 @@ print(xtable::xtable(reg_overview, digits=0,
 
 @
 
+\clearpage
+
+\subsection{Data quality}
+\subsubsection{Data quality: variable completeness}
+
 <<'Table: Completeness of variables', results='asis', echo=FALSE>>=
-num_na <- function(x) {sum(is.na(x))}
+pst_na <- function(x) {sum(is.na(x))/length(x)*100}
 
-tmp <- registration %>%
+var_pst_na <- registration %>%
   dplyr::filter(STATUS==1) %>%
-  summarise(across(everything()), list(num_na))
+  purrr::map_df(pst_na) %>%
+  tidyr::pivot_longer(everything(),
+                      names_to = "Variable",
+                      values_to = "pst_missing") %>%
+  dplyr::mutate(pst_missing = round(pst_missing, 1)) %>%
+  dplyr::filter(pst_missing > 0) %>%
+  dplyr::arrange(-pst_missing)
 
-tmp <- registration %>%
+print(xtable::xtable(
+  var_pst_na, digits=1,
+  caption='Variable completeness, registration form. Percentage of missing variables in completed forms. Variables with no empty fields are excluded, but might still have missing values if missing is coded as something other than NULL. Sorted by decreasing percentage of missing values. Some values may be NULL by design, and do not necessarily represent missing values.'),
+  include.rownames=FALSE)
+
+var_pst_na_readmission <- readmission %>%
   dplyr::filter(STATUS==1) %>%
-  apply(2, function(x) {sum(is.na(x))/length(x)*100}) %>%
-  as.data.frame() %>%
-  round(1)
+  purrr::map_df(pst_na) %>%
+  tidyr::pivot_longer(everything(),
+                      names_to = "Variable",
+                      values_to = "pst_missing") %>%
+  dplyr::mutate(pst_missing = round(pst_missing, 1)) %>%
+  dplyr::filter(pst_missing > 0) %>%
+  dplyr::arrange(-pst_missing)
 
+print(xtable::xtable(
+  var_pst_na_readmission, digits=1,
+  caption='Variable completeness, readmission form. Percentage of missing variables in completed forms. Variables with no empty fields are excluded, but might still have missing values if missing is coded as something other than NULL. Sorted by decreasing percentage of missing values. Some values may be NULL by design, and do not necessarily represent missing values.'),
+  include.rownames=FALSE)
 
+var_pst_na_ninetydays <- ninetydays %>%
+  dplyr::filter(STATUS==1) %>%
+  purrr::map_df(pst_na) %>%
+  tidyr::pivot_longer(everything(),
+                      names_to = "Variable",
+                      values_to = "pst_missing") %>%
+  dplyr::mutate(pst_missing = round(pst_missing, 1)) %>%
+  dplyr::filter(pst_missing > 0) %>%
+  dplyr::arrange(-pst_missing)
 
+print(xtable::xtable(
+  var_pst_na_ninetydays, digits=1,
+  caption='Variable completeness, ninety day followup form. Percentage of missing variables in completed forms. Variables with no empty fields are excluded, but might still have missing values if missing is coded as something other than NULL. Sorted by decreasing percentage of missing values. Some values may be NULL by design, and do not necessarily represent missing values.'),
+  include.rownames=FALSE)
 
 @
+
+\clearpage
+
+\subsubsection{Summary: Registration form}
+
+<<'Table: summary of forms', results='asis', echo=FALSE>>=
+reg_summary <- summary(registration)
+print(xtable::xtable(reg_summary[, 1:4]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 5:8]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 9:12]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 13:16]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 17:20]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 21:24]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 25:28]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 29:32]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 33:36]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 37:40]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 41:44]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 45:48]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 49:52]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 53:56]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 57:60]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 61:64]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 65:68]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 69:72]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 73:75]), include.rownames=FALSE)
+@
+
+\clearpage
+
+\subsubsection{Summary: Readmission form}
+
+<<'Table: summary of readmission form', results='asis', echo=FALSE>>=
+reg_summary <- summary(readmission)
+print(xtable::xtable(reg_summary[, 1:4]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 5:8]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 9:12]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 13:16]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 17:20]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 21:24]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 25:28]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 29:31]), include.rownames=FALSE)
+@
+
+\clearpage
+
+\subsubsection{Summary: ninetyday form}
+
+<<'Table: summary of ninetyday form', results='asis', echo=FALSE>>=
+reg_summary <- summary(ninetydays)
+print(xtable::xtable(reg_summary[, 1:4]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 5:8]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 9:12]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 13:16]), include.rownames=FALSE)
+print(xtable::xtable(reg_summary[, 17:18]), include.rownames=FALSE)
+@
+
+\clearpage
+
+\subsection{Results}
+
+<<'Preliminary results', results='asis', echo=FALSE>>=
+
+relap <- regdata %>%
+  dplyr::filter(STATUS_READMISSION == 1,
+    operation_group != "Other") %>%
+  dplyr::mutate(relap = pmax(RELAPAROTOMY, RELAPAROTOMY_READMISSION,
+                            na.rm = TRUE))
+
+tabell1 <- relap %>%
+  summarise(n_relap = sum(relap),
+            N = n(),
+            .by = operation_group) %>%
+  janitor::adorn_totals() %>%
+  dplyr::mutate(pst_relap = n_relap/N*100)
+
+tabell2 <- relap %>%
+  dplyr::filter(WHO_ECOG_SCORE %in% c(0,1),
+                substr(ICD10, 1, 1) == 'C',
+                URGENCY == 1) %>%
+  summarise(n_relap = sum(relap),
+            N = n(),
+            .by = operation_group) %>%
+  janitor::adorn_totals() %>%
+  dplyr::mutate(pst_relap = n_relap/N*100)
+
+print(xtable::xtable(
+  tabell1, digits=1,
+  caption='Relaparatomy/laparoscopy rate per operation group. Selection: All patients with a completed readmission/30-day followup.'),
+  include.rownames=FALSE)
+
+print(xtable::xtable(
+  tabell2, digits=1,
+  caption='Relaparatomy/laparoscopy rate per operation group. Selection: All patients with a completed readmission/30-day followup, and with elective surgery, whoecog 0 or 1, and malign diagnosis'),
+  include.rownames=FALSE)
+
+followup90 <- regdata %>%
+  dplyr::filter(STATUS_READMISSION90 == 1,
+    operation_group != "Other") %>%
+  summarise("Yes - physically" = sum(FOLLOWUP_STATUS==1),
+            "Yes - phone" = sum(FOLLOWUP_STATUS==2),
+            "Yes - relatives" = sum(FOLLOWUP_STATUS==3),
+            "No" = sum(FOLLOWUP_STATUS==0),
+            N =n(),
+            .by = operation_group) %>%
+  janitor::adorn_totals()
+
+print(xtable::xtable(
+  followup90, digits=1,
+  caption='Status 90-day followup per operation group. Only completed forms included'),
+  include.rownames=FALSE)
+
+@
+
+
+
+
 
 \end{document}
