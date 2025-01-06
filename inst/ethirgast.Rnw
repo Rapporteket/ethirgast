@@ -306,9 +306,9 @@ print(xtable::xtable(reg_summary[, 17:18]), include.rownames=FALSE)
 
 relap <- regdata %>%
   dplyr::filter(STATUS_READMISSION == 1,
-    operation_group != "Other") %>%
+                operation_group != "Other") %>%
   dplyr::mutate(relap = pmax(RELAPAROTOMY, RELAPAROTOMY_READMISSION,
-                            na.rm = TRUE))
+                             na.rm = TRUE))
 
 tabell1 <- relap %>%
   summarise(n_relap = sum(relap),
@@ -339,7 +339,7 @@ print(xtable::xtable(
 
 followup90 <- regdata %>%
   dplyr::filter(STATUS_READMISSION90 == 1,
-    operation_group != "Other") %>%
+                operation_group != "Other") %>%
   summarise("Yes - physically" = sum(FOLLOWUP_STATUS==1),
             "Yes - phone" = sum(FOLLOWUP_STATUS==2),
             "Yes - relatives" = sum(FOLLOWUP_STATUS==3),
@@ -352,6 +352,80 @@ print(xtable::xtable(
   followup90, digits=1,
   caption='Status 90-day followup per operation group. Only completed forms included'),
   include.rownames=FALSE)
+
+deceased90 <- dplyr::bind_rows(
+  regdata %>% dplyr::filter(STATUS_READMISSION90 == 1,
+                            operation_group != "Other",
+                            FOLLOWUP_STATUS %in% 1:3),
+  regdata %>% dplyr::filter(STATUS_READMISSION == 1,
+                            OPERATION_DATE < max(as.Date(regdata$OPERATION_DATE)) -
+                              lubridate::days(60),
+                            operation_group != "Other",
+                            IN_HOUSE_DEATH_READMISSION == 1)) %>%
+  dplyr::bind_rows(
+    regdata %>% dplyr::filter(STATUS_READMISSION == 1,
+                              OPERATION_DATE < max(as.Date(regdata$OPERATION_DATE)) -
+                                lubridate::days(90),
+                              operation_group != "Other",
+                              IN_HOUSE_DEATH == 1)) %>%
+  # dplyr::mutate(Deceased = pmax(DEATH, IN_HOUSE_DEATH_READMISSION, IN_HOUSE_DEATH, na.rm = TRUE)) %>%
+  # dplyr::select(OPERATION_DATE, DEATH, IN_HOUSE_DEATH_READMISSION, IN_HOUSE_DEATH, Deceased)
+  dplyr::summarise(
+    n_dead = sum(DEATH | IN_HOUSE_DEATH_READMISSION | IN_HOUSE_DEATH, na.rm = TRUE),
+    N = n(),
+    .by = operation_group) %>%
+  janitor::adorn_totals() %>%
+  dplyr::mutate(pst_dead90 = n_dead/N*100)
+
+print(xtable::xtable(
+  deceased90, digits=1,
+  caption='Deceased after 90 days. Selection: Denominator consists of all patients who have a completed
+  ninety day form with a positive answer to the question "Has patient been followed up?". In addition, patients who are registered as deceased In-house (90 days prior to most resent registration) or In-house readmission (60 days prior to most resent registration) are included. The nominator consists of all patients in the denominator that are registered as deceased on either registration, readmission or ninetyday-form.'),
+  include.rownames=FALSE)
+
+
+anastomosis_leakage <- regdata %>%
+  dplyr::filter(ANASTOMOSIS ==1,
+                OPERATION_DATE < max(as.Date(regdata$OPERATION_DATE)) -
+                  lubridate::days(30),
+                operation_group != "Other") %>%
+  dplyr::mutate(leak = ANASTOMOTIC_LEAK | RELAPAROTOMY_YES_READMISSION == 1) %>%
+  dplyr::summarise(
+    n_leak = sum(leak, na.rm = TRUE),
+    N = n(),
+    .by = operation_group) %>%
+  janitor::adorn_totals() %>%
+  dplyr::mutate(pst_leak = n_leak/N*100)
+
+print(xtable::xtable(
+  anastomosis_leakage, digits=1,
+  caption='Anastomosis leakage (within 30 days). Selection: Denominator consists of all patients who have a new anastomosis created. The nominator consists of all patients in the denominator that are registered with anastomosis leakage in either the registration or readmission form.'),
+  include.rownames=FALSE)
+
+
+anastomosis_leakage <- regdata %>%
+  dplyr::filter(ANASTOMOSIS ==1,
+                STATUS_READMISSION == 1,
+                operation_group != "Other") %>%
+  dplyr::mutate(leak = ANASTOMOTIC_LEAK | RELAPAROTOMY_YES_READMISSION == 1) %>%
+  dplyr::summarise(
+    n_leak = sum(leak, na.rm = TRUE),
+    N = n(),
+    .by = operation_group) %>%
+  janitor::adorn_totals() %>%
+  dplyr::mutate(pst_leak = n_leak/N*100)
+
+print(xtable::xtable(
+  anastomosis_leakage, digits=1,
+  caption='Anastomosis leakage (within 30 days). Selection: Same as above, but with the additional constaint that the readmission form has to be completed.'),
+  include.rownames=FALSE)
+
+# IN_HOUSE_DEATH
+# IN_HOUSE_DEATH_DATE
+# IN_HOUSE_DEATH_READMISSION
+# IN_HOUSE_DEATH_DATE_READMISSION
+# DEATH
+# DEATH_DATE
 
 @
 
