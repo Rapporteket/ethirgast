@@ -52,7 +52,20 @@ readmission <-
   filter(CENTREID == 1)
 registration <-
   rapbase::loadRegData("ethirgast", "SELECT * FROM registration") %>%
-  filter(CENTREID == 1)
+  filter(CENTREID == 1) %>%
+  mutate(
+    operation_group = case_when(
+      (substr(NCSP, 1, 3) == "JFB" |
+         (substr(NCSP, 1, 3) == "JFB" & (substr(NCSP, 4, 5) %in% 20:64))) ~ "Colonic resection",
+      substr(NCSP, 1, 3) == "JGB" ~ "Rectal resection",
+      substr(NCSP, 1, 3) == "JCC" ~ "Oesofagus resection",
+      substr(NCSP, 1, 3) %in% c("JDC", "JDD") ~ "Ventricle resection",
+      substr(NCSP, 1, 3) %in% c("JJB") ~ "Liver resection",
+      substr(NCSP, 1, 5) %in% c("JLC30","JLC31") ~ "Whipple's procedure",
+      substr(NCSP, 1, 5) %in% c('JLC10','JLC11', 'JLC00',
+                                'JLC20','JLC40', 'JLC50', 'JLC96') ~ "Distal and other pancreatic",
+      .default = "Other"
+    ))
 
 regdata_all <- registration %>%
   dplyr::filter(CENTREID == 1) %>%
@@ -71,23 +84,10 @@ regdata_all <- registration %>%
     PatientAge = lubridate::year(lubridate::as.period(lubridate::interval(
       start = BIRTH_DATE, end = OPERATION_DATE))))
 
-regdata <- regdata_all %>%
-  dplyr::filter(STATUS == 1)
 
-regdata <- regdata %>%
-  mutate(
-    operation_group = case_when(
-      (substr(NCSP, 1, 3) == "JFB" |
-         (substr(NCSP, 1, 3) == "JFB" & (substr(NCSP, 4, 5) %in% 20:64))) ~ "Colonic resection",
-      substr(NCSP, 1, 3) == "JGB" ~ "Rectal resection",
-      substr(NCSP, 1, 3) == "JCC" ~ "Oesofagus resection",
-      substr(NCSP, 1, 3) %in% c("JDC", "JDD") ~ "Ventricle resection",
-      substr(NCSP, 1, 3) %in% c("JJB") ~ "Liver resection",
-      substr(NCSP, 1, 5) %in% c("JLC30","JLC31") ~ "Whipple's procedure",
-      substr(NCSP, 1, 5) %in% c('JLC10','JLC11', 'JLC00',
-                                'JLC20','JLC40', 'JLC50', 'JLC96') ~ "Distal and other pancreatic"
-    ),
-    operation_group = ifelse(is.na(operation_group), "Other", operation_group),
+regdata <- regdata_all %>%
+  dplyr::filter(STATUS == 1) %>%
+  dplyr::mutate(
     OPERATION_DATE = as.Date(OPERATION_DATE),
     DISCHARGE_DATE = as.Date(DISCHARGE_DATE),
     IN_HOUSE_DEATH_DATE = as.Date(IN_HOUSE_DEATH_DATE)
@@ -120,7 +120,8 @@ outfile <- paste0(figfolder, outfile)
 gr <- c(0, seq(20, 80, 10)+1, 120)
 regdata$VariabelGr <- cut(regdata$PatientAge, breaks=gr, include.lowest=TRUE, right=FALSE)
 grtxt <- c('0-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '80+')
-AntHoved <- table(regdata[, c("GENDER", "VariabelGr")])
+tmp <- regdata %>% dplyr::filter(operation_group != "Other")
+AntHoved <- table(tmp[, c("GENDER", "VariabelGr")])
 NHoved <- rowSums(AntHoved)
 FigTypUt <- rapFigurer::figtype(outfile=outfile, fargepalett="BlaaOff", pointsizePDF=12)
 farger <- FigTypUt$farger
@@ -161,18 +162,22 @@ print(xtable::xtable(Tabell_other, digits=0,
                      caption='Content of group other'),
       include.rownames=FALSE)
 
+regdata <- regdata %>% dplyr::filter(operation_group != "Other")
+registration <- registration %>% dplyr::filter(operation_group != "Other")
+readmission <- readmission %>% dplyr::filter(MCEID %in% registration$MCEID)
+ninetydays <- ninetydays %>% dplyr::filter(MCEID %in% registration$MCEID)
 
-reg_overview <- registration %>% filter(CENTREID == 1) %>%
+reg_overview <- registration %>%
   summarise("Total" = n(),
             "Created" = sum(STATUS==-1),
             "Unfinished" = sum(STATUS==0),
             "Completed" = sum(STATUS==1)) %>%
-  bind_rows(readmission %>% filter(CENTREID == 1) %>%
+  bind_rows(readmission %>%
               summarise("Total" = n(),
                         "Created" = sum(STATUS==-1),
                         "Unfinished" = sum(STATUS==0),
                         "Completed" = sum(STATUS==1))) %>%
-  bind_rows(ninetydays %>% filter(CENTREID == 1) %>%
+  bind_rows(ninetydays %>%
               summarise("Total" = n(),
                         "Created" = sum(STATUS==-1),
                         "Unfinished" = sum(STATUS==0),
@@ -182,7 +187,7 @@ reg_overview$Formtype <- c("registration", "readmission", "ninetydays")
 reg_overview <- reg_overview[,c("Formtype", "Total", "Created", "Unfinished", "Completed")]
 
 print(xtable::xtable(reg_overview, digits=0,
-                     caption='Registration by registration status'),
+                     caption='Registration by registration status. Only obligatory operations.'),
       include.rownames=FALSE)
 
 @
@@ -207,7 +212,7 @@ var_pst_na <- registration %>%
 
 print(xtable::xtable(
   var_pst_na, digits=1,
-  caption='Variable completeness, registration form. Percentage of missing variables in completed forms. Variables with no empty fields are excluded, but might still have missing values if missing is coded as something other than NULL. Sorted by decreasing percentage of missing values. Some values may be NULL by design, and do not necessarily represent missing values.'),
+  caption='Variable completeness, registration form. Percentage of missing variables in completed forms. Variables with no empty fields are excluded, but might still have missing values if missing is coded as something other than NULL. Sorted by decreasing percentage of missing values. Some values may be NULL by design, and do not necessarily represent missing values. Only obligatory operations.'),
   include.rownames=FALSE)
 
 var_pst_na_readmission <- readmission %>%
@@ -222,7 +227,7 @@ var_pst_na_readmission <- readmission %>%
 
 print(xtable::xtable(
   var_pst_na_readmission, digits=1,
-  caption='Variable completeness, readmission form. Percentage of missing variables in completed forms. Variables with no empty fields are excluded, but might still have missing values if missing is coded as something other than NULL. Sorted by decreasing percentage of missing values. Some values may be NULL by design, and do not necessarily represent missing values.'),
+  caption='Variable completeness, readmission form. Percentage of missing variables in completed forms. Variables with no empty fields are excluded, but might still have missing values if missing is coded as something other than NULL. Sorted by decreasing percentage of missing values. Some values may be NULL by design, and do not necessarily represent missing values. Only obligatory operations.'),
   include.rownames=FALSE)
 
 var_pst_na_ninetydays <- ninetydays %>%
@@ -237,7 +242,7 @@ var_pst_na_ninetydays <- ninetydays %>%
 
 print(xtable::xtable(
   var_pst_na_ninetydays, digits=1,
-  caption='Variable completeness, ninety day followup form. Percentage of missing variables in completed forms. Variables with no empty fields are excluded, but might still have missing values if missing is coded as something other than NULL. Sorted by decreasing percentage of missing values. Some values may be NULL by design, and do not necessarily represent missing values.'),
+  caption='Variable completeness, ninety day followup form. Percentage of missing variables in completed forms. Variables with no empty fields are excluded, but might still have missing values if missing is coded as something other than NULL. Sorted by decreasing percentage of missing values. Some values may be NULL by design, and do not necessarily represent missing values. Only obligatory operations.'),
   include.rownames=FALSE)
 
 @
