@@ -9,7 +9,7 @@
 % \usepackage[a4paper]{geometry}
 \usepackage[pdftex, colorlinks, linkcolor=lysblaa, urlcolor=lysblaa]{hyperref}
 
-\title{Ethirgast}
+\title{Ethirgast Monthly Report}
 % \author{Ethirgast}
 
 %setter grå skrift fremfort sort
@@ -27,19 +27,10 @@ knitr::opts_knit$set(root.dir = './')
 
 
 <<LastData, include=FALSE, cache=FALSE>>=
-# setwd('c:/GIT/nnrr/doc/')
 rm(list=ls())
-# library(nnrr)
-library(dplyr)
-# library(tidyr)
-options(dplyr.summarise.inform = FALSE)
 
-# centre <- read.csv("~/softlinks/mydata/ethirgast/centre_202405131159.csv")
-# mce <- read.csv("~/softlinks/mydata/ethirgast/mce_202405131200.csv")
-# ninetydays <- read.csv("~/softlinks/mydata/ethirgast/ninetydays_202405131200.csv")
-# patient <- read.csv("~/softlinks/mydata/ethirgast/patient_202405131201.csv")
-# readmission <- read.csv("~/softlinks/mydata/ethirgast/readmission_202405131201.csv")
-# registration <- read.csv("~/softlinks/mydata/ethirgast/registration_202405131201.csv")
+library(dplyr)
+options(dplyr.summarise.inform = FALSE)
 
 centre <- rapbase::loadRegData("ethirgast", "SELECT * FROM centre")
 mce <- rapbase::loadRegData("ethirgast", "SELECT * FROM mce")
@@ -63,7 +54,10 @@ registration <-
       substr(NCSP, 1, 3) %in% c("JJB") ~ "Liver resection",
       substr(NCSP, 1, 5) %in% c("JLC30","JLC31") ~ "Whipple's procedure",
       substr(NCSP, 1, 5) %in% c('JLC10','JLC11', 'JLC00',
-                                'JLC20','JLC40', 'JLC50', 'JLC96') ~ "Distal and other pancreatic",
+                                'JLC20','JLC40', 'JLC50', 'JLC96') ~
+        "Distal and other pancreatic",
+      substr(NCSP, 1, 3) == "JKC" ~ "Biliary bypass procedures",
+      substr(NCSP, 1, 3) == "JFG" ~ "Stoma reversal procedures",
       .default = "Other"
     ))
 
@@ -153,15 +147,6 @@ print(xtable::xtable(Tabell, digits=0,
                      caption='Completed registrations by operation group'),
       include.rownames=FALSE)
 
-Tabell_other <- regdata %>%
-  dplyr::filter(operation_group == "Other") %>%
-  dplyr::count(NCSP) %>%
-  dplyr::arrange(-n)
-
-print(xtable::xtable(Tabell_other, digits=0,
-                     caption='Content of group other'),
-      include.rownames=FALSE)
-
 regdata <- regdata %>% dplyr::filter(operation_group != "Other")
 registration <- registration %>% dplyr::filter(operation_group != "Other")
 readmission <- readmission %>% dplyr::filter(MCEID %in% registration$MCEID)
@@ -191,119 +176,6 @@ print(xtable::xtable(reg_overview, digits=0,
       include.rownames=FALSE)
 
 @
-
-\clearpage
-
-\subsection{Data quality}
-\subsubsection{Data quality: variable completeness}
-
-<<'Table: Completeness of variables', results='asis', echo=FALSE>>=
-pst_na <- function(x) {sum(is.na(x))/length(x)*100}
-
-var_pst_na <- registration %>%
-  dplyr::filter(STATUS==1) %>%
-  purrr::map_df(pst_na) %>%
-  tidyr::pivot_longer(everything(),
-                      names_to = "Variable",
-                      values_to = "pst_missing") %>%
-  dplyr::mutate(pst_missing = round(pst_missing, 1)) %>%
-  dplyr::filter(pst_missing > 0) %>%
-  dplyr::arrange(-pst_missing)
-
-print(xtable::xtable(
-  var_pst_na, digits=1,
-  caption='Variable completeness, registration form. Percentage of missing variables in completed forms. Variables with no empty fields are excluded, but might still have missing values if missing is coded as something other than NULL. Sorted by decreasing percentage of missing values. Some values may be NULL by design, and do not necessarily represent missing values. Only obligatory operations.'),
-  include.rownames=FALSE)
-
-var_pst_na_readmission <- readmission %>%
-  dplyr::filter(STATUS==1) %>%
-  purrr::map_df(pst_na) %>%
-  tidyr::pivot_longer(everything(),
-                      names_to = "Variable",
-                      values_to = "pst_missing") %>%
-  dplyr::mutate(pst_missing = round(pst_missing, 1)) %>%
-  dplyr::filter(pst_missing > 0) %>%
-  dplyr::arrange(-pst_missing)
-
-print(xtable::xtable(
-  var_pst_na_readmission, digits=1,
-  caption='Variable completeness, readmission form. Percentage of missing variables in completed forms. Variables with no empty fields are excluded, but might still have missing values if missing is coded as something other than NULL. Sorted by decreasing percentage of missing values. Some values may be NULL by design, and do not necessarily represent missing values. Only obligatory operations.'),
-  include.rownames=FALSE)
-
-var_pst_na_ninetydays <- ninetydays %>%
-  dplyr::filter(STATUS==1) %>%
-  purrr::map_df(pst_na) %>%
-  tidyr::pivot_longer(everything(),
-                      names_to = "Variable",
-                      values_to = "pst_missing") %>%
-  dplyr::mutate(pst_missing = round(pst_missing, 1)) %>%
-  dplyr::filter(pst_missing > 0) %>%
-  dplyr::arrange(-pst_missing)
-
-print(xtable::xtable(
-  var_pst_na_ninetydays, digits=1,
-  caption='Variable completeness, ninety day followup form. Percentage of missing variables in completed forms. Variables with no empty fields are excluded, but might still have missing values if missing is coded as something other than NULL. Sorted by decreasing percentage of missing values. Some values may be NULL by design, and do not necessarily represent missing values. Only obligatory operations.'),
-  include.rownames=FALSE)
-
-@
-
-\clearpage
-
-\subsubsection{Summary: Registration form}
-
-<<'Table: summary of forms', results='asis', echo=FALSE>>=
-reg_summary <- summary(registration)
-print(xtable::xtable(reg_summary[, 1:4]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 5:8]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 9:12]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 13:16]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 17:20]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 21:24]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 25:28]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 29:32]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 33:36]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 37:40]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 41:44]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 45:48]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 49:52]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 53:56]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 57:60]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 61:64]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 65:68]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 69:72]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 73:75]), include.rownames=FALSE)
-@
-
-\clearpage
-
-\subsubsection{Summary: Readmission form}
-
-<<'Table: summary of readmission form', results='asis', echo=FALSE>>=
-reg_summary <- summary(readmission)
-print(xtable::xtable(reg_summary[, 1:4]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 5:8]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 9:12]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 13:16]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 17:20]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 21:24]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 25:28]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 29:31]), include.rownames=FALSE)
-@
-
-\clearpage
-
-\subsubsection{Summary: ninetyday form}
-
-<<'Table: summary of ninetyday form', results='asis', echo=FALSE>>=
-reg_summary <- summary(ninetydays)
-print(xtable::xtable(reg_summary[, 1:4]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 5:8]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 9:12]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 13:16]), include.rownames=FALSE)
-print(xtable::xtable(reg_summary[, 17:18]), include.rownames=FALSE)
-@
-
-\clearpage
 
 \subsection{Results}
 
