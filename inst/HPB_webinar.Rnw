@@ -1,0 +1,212 @@
+\documentclass[a4paper]{article} % ,twoside
+% \usepackage[norsk]{babel}
+% \usepackage[utf8x]{inputenc}
+% \usepackage{subfig}
+% \usepackage{pdfpages}
+% \usepackage{booktabs}
+% \usepackage{caption}
+% \usepackage{amssymb}
+% \usepackage[a4paper]{geometry}
+\usepackage[pdftex, colorlinks, linkcolor=lysblaa, urlcolor=lysblaa]{hyperref}
+
+\title{Ethirgast}
+% \author{Ethirgast}
+
+\usepackage{xcolor}
+\usepackage{graphicx}
+
+<<'initOpts',include=FALSE>>=
+knitr::opts_chunk$set(warnings=FALSE,echo=FALSE)
+knitr::opts_knit$set(root.dir = './')
+@
+
+
+<<LastData, include=FALSE, cache=FALSE>>=
+rm(list=ls())
+library(dplyr)
+# library(tidyr)
+options(dplyr.summarise.inform = FALSE)
+
+centre <- rapbase::loadRegData("ethirgast", "SELECT * FROM centre")
+mce <- rapbase::loadRegData("ethirgast", "SELECT * FROM mce")
+ninetydays <-
+  rapbase::loadRegData("ethirgast", "SELECT * FROM ninetydays") %>%
+  filter(CENTREID == 1, STATUS == 1)
+patient <- rapbase::loadRegData("ethirgast", "SELECT * FROM patient")
+readmission <-
+  rapbase::loadRegData("ethirgast", "SELECT * FROM readmission")%>%
+  filter(CENTREID == 1, STATUS == 1)
+registration <-
+  rapbase::loadRegData("ethirgast", "SELECT * FROM registration") %>%
+  filter(CENTREID == 1) %>%
+  mutate(
+    # operation_group = case_when(
+    #   substr(NCSP, 1, 3) == "JLC" ~ "Pancreas resection",
+    #   substr(NCSP, 1, 3) == "JJB" ~ "Liver resection",
+    #   substr(NCSP, 1, 3) == "JKD" ~ "Biliodigestive anastomosis",
+    #   .default = "Other"),
+    operation_group = case_when(
+      substr(NCSP, 1, 3) == "JLC" & substr(NCSP, 4, 5) != "30" ~
+        "Other pancreas resections",
+      substr(NCSP, 1, 5) == "JLC30" ~ "Whipple",
+      substr(NCSP, 1, 3) == "JJB" ~ "Liver resection",
+      substr(NCSP, 1, 3) == "JKD" & substr(ICD10, 1, 1) %in% c("C", "D") ~
+        "Biliodigestive anastomosis, C & D diagnosis",
+      substr(NCSP, 1, 3) == "JKD" & substr(ICD10, 1, 1) %in% "K" ~
+        "Biliodigestive anastomosis, K diagnosis",
+      substr(NCSP, 1, 3) == "JKD" & !(substr(ICD10, 1, 1) %in% c("C", "D", "K")) ~
+        "Biliodigestive anastomosis, other diagnosis",
+      .default = "Other"),
+  )
+
+regdata_all <- registration %>%
+  dplyr::filter(CENTREID == 1) %>%
+  merge(readmission, by = "MCEID",
+        suffixes = c("", "_READMISSION"),
+        all.x = TRUE) %>%
+  merge(ninetydays, by = "MCEID",
+        suffixes = c("", "_READMISSION90"),
+        all.x = TRUE) %>%
+  merge(mce[,c("MCEID", "PATIENT_ID")], by = "MCEID",
+        all.x = TRUE) %>%
+  merge(patient[,c("ID", "BIRTH_DATE", "GENDER")],
+        by.x = "PATIENT_ID", by.y = "ID",
+        all.x = TRUE) %>%
+  dplyr::mutate(
+    PatientAge = lubridate::year(lubridate::as.period(lubridate::interval(
+      start = BIRTH_DATE, end = OPERATION_DATE))))
+
+
+regdata <- regdata_all %>%
+  dplyr::filter(#STATUS == 1,
+                operation_group != "Other") %>%
+  dplyr::mutate(
+    OPERATION_DATE = as.Date(OPERATION_DATE),
+    DISCHARGE_DATE = as.Date(DISCHARGE_DATE),
+    IN_HOUSE_DEATH_DATE = as.Date(IN_HOUSE_DEATH_DATE),
+    Deceased = IN_HOUSE_DEATH == 1 | IN_HOUSE_DEATH_READMISSION == 1 |
+      DEATH == 1,
+    Deceased = ifelse(is.na(Deceased), FALSE, Deceased) |> as.numeric(),
+    Deceased = ifelse(Deceased == 0 & DEATH == 9, 9, Deceased),
+    ACCORDION_SCORE = ifelse(ACCORDION_SCORE == "Less than 3", "1",
+                             ACCORDION_SCORE) |> as.numeric(),
+    ACCORDION_SCORE_READMISSION =
+      ifelse(ACCORDION_SCORE_READMISSION == "Less than 3", "1",
+             ACCORDION_SCORE_READMISSION) |> as.numeric(),
+    ACCORDION_SCORE = pmax(ACCORDION_SCORE, ACCORDION_SCORE_READMISSION,
+                           na.rm = T)
+  )
+
+figstr <- 0.61
+tmp <- Sys.setlocale(category = "LC_ALL", locale = "nb_NO.UTF-8")
+
+figfolder <- paste0("C:/Users/kth200/OneDrive - Helse Nord RHF/Dokumenter/regdata/ethirgast/fig/")
+if (!dir.exists(figfolder)) {
+  dir.create(figfolder)
+}
+tabfolder <- paste0("C:/Users/kth200/OneDrive - Helse Nord RHF/Dokumenter/regdata/ethirgast/tab/")
+if (!dir.exists(tabfolder)) {
+  dir.create(tabfolder)
+}
+@
+
+\begin{document}
+\maketitle
+
+\section{Registrations in Ethirgast}
+
+<<'Registrations', results='asis', echo=FALSE>>=
+
+summary_stats <- regdata |>
+  dplyr::filter(
+    OPERATION_DATE < "2025-01-01") |>
+  dplyr::summarise(
+    N_2024 = n(),
+    Relaparotomy = sum(RELAPAROTOMY == 1 |
+                         RELAPAROTOMY_READMISSION == 1, na.rm = T),
+    Acc4plus = sum(ACCORDION_SCORE > 3),
+    Death30 = sum(IN_HOUSE_DEATH, na.rm = T) +
+      sum(IN_HOUSE_DEATH_READMISSION, na.rm = T),
+    n_lost_to_followup = sum(FOLLOWUP_STATUS == 0, na.rm = T),
+    n90day = sum(FOLLOWUP_STATUS %in% c(1:3)),
+    Death90 = sum(DEATH == 1, na.rm = T),
+    Readmission90_completed = sum(STATUS_READMISSION90==1, na.rm = T),
+    n90day_incl_dead30 = sum(FOLLOWUP_STATUS %in% c(1:3)) + Death30,
+    n90day_alive = sum(FOLLOWUP_STATUS %in% c(1:3, 9) & Deceased == 0),
+    Deceased = sum(Deceased == 1, na.rm = T),
+    .by = operation_group
+  ) |> arrange(operation_group)
+
+summary_stats_all <- regdata |>
+  dplyr::summarise(
+    N_total = n(),
+    .by = operation_group
+  ) |> arrange(operation_group)
+
+summary_stats_all <- merge(summary_stats_all, summary_stats,
+                           by = "operation_group")
+
+write.csv2(summary_stats_all, "summary_stats_all.csv", row.names = F,
+           fileEncoding = "Latin1")
+
+######## Ny versjon:
+
+summary_stats <- regdata |>
+  dplyr::filter(
+    OPERATION_DATE < "2025-01-01") |>
+  dplyr::summarise(
+    N_eligible = n(),
+    "Relaparotomy 30 days" = sum(RELAPAROTOMY == 1 |
+                                   RELAPAROTOMY_READMISSION == 1, na.rm = T),
+    "Acc4plus 30 days" = sum(ACCORDION_SCORE > 3),
+    "Death 30 days" = sum(IN_HOUSE_DEATH, na.rm = T) +
+      sum(IN_HOUSE_DEATH_READMISSION, na.rm = T),
+    "90Day form completed" = sum(STATUS_READMISSION90==1, na.rm = T),
+    # "90Day form not completed" = sum(is.na(STATUS_READMISSION90)),
+    "90Day form not completed, excl. dead<30days" =
+      sum(is.na(STATUS_READMISSION90) &
+            !(IN_HOUSE_DEATH %in% 1 | IN_HOUSE_DEATH_READMISSION %in% 1)),
+    "Reg. as lost to followup at 90 days" = sum(FOLLOWUP_STATUS == 0, na.rm = T),
+    "Reg. as followed up at 90 days" = sum(FOLLOWUP_STATUS %in% c(1:3)),
+    "Alive at 30D deceased at 90D" = sum(DEATH == 1, na.rm = T),
+    "Death status unknown 90D" = sum(DEATH == 9, na.rm = T),
+    "ECOG 0/1" = sum(WHO_ECOG_SCORE_READMISSION90 %in% 0:1 & FOLLOWUP_STATUS %in% c(1:3)),
+    "ECOG 2-4" = sum(WHO_ECOG_SCORE_READMISSION90 %in% 2:4 & FOLLOWUP_STATUS %in% c(1:3)),
+    # n90day_incl_dead30 = sum(FOLLOWUP_STATUS %in% c(1:3)) + Death30,
+    "Alive 90D confirmed" = sum(FOLLOWUP_STATUS %in% c(1:3) & Deceased == 0),
+    "90 day mortality (total)" = sum(Deceased == 1, na.rm = T),
+    .by = operation_group
+  ) |> arrange(operation_group)
+
+summary_stats_all <- regdata |>
+  dplyr::summarise(
+    N_total = n(),
+    .by = operation_group
+  ) |> arrange(operation_group)
+
+summary_stats_all <- merge(summary_stats_all, summary_stats,
+                           by = "operation_group")
+
+summary_stats_all_tr <- summary_stats_all |> tr_summarize_output()
+
+write.csv2(summary_stats_all, "summary_stats_all.csv", row.names = F,
+           fileEncoding = "Latin1")
+write.csv2(summary_stats_all_tr, "summary_stats_all_transposed.csv", row.names = F,
+           fileEncoding = "Latin1")
+
+
+aux <- regdata |> filter(FOLLOWUP_STATUS %in% c(1:3, 9) & is.na(Deceased)) |>
+  select("OPERATION_DATE", "IN_HOUSE_DEATH", "IN_HOUSE_DEATH_READMISSION",
+         "DEATH", "Deceased", "FOLLOWUP_STATUS",
+         "DEATH_DATE", "IN_HOUSE_DEATH_DATE",
+         "IN_HOUSE_DEATH_DATE_READMISSION")
+tmp <- regdata[ ,c("OPERATION_DATE", "IN_HOUSE_DEATH", "IN_HOUSE_DEATH_READMISSION",
+                   "DEATH", "Deceased","Deceased2",
+                   "DEATH_DATE", "IN_HOUSE_DEATH_DATE",
+                   "IN_HOUSE_DEATH_DATE_READMISSION")] |> filter(is.na(Deceased2))
+
+@
+
+
+
+\end{document}
