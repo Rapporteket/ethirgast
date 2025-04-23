@@ -96,11 +96,11 @@ regdata <- regdata_all %>%
 figstr <- 0.61
 tmp <- Sys.setlocale(category = "LC_ALL", locale = "nb_NO.UTF-8")
 
-figfolder <- paste0("~/mydata/ethirgast/first_report/")
+figfolder <- paste0("C:/Users/kth200/OneDrive - Helse Nord RHF/Dokumenter/regdata/ethirgast/fig/")
 if (!dir.exists(figfolder)) {
   dir.create(figfolder)
 }
-tabfolder <- paste0("~/mydata/ethirgast/first_report/")
+tabfolder <- paste0("C:/Users/kth200/OneDrive - Helse Nord RHF/Dokumenter/regdata/ethirgast/tab/")
 if (!dir.exists(tabfolder)) {
   dir.create(tabfolder)
 }

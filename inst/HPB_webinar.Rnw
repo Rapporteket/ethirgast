@@ -40,11 +40,6 @@ registration <-
   rapbase::loadRegData("ethirgast", "SELECT * FROM registration") %>%
   filter(CENTREID == 1) %>%
   mutate(
-    # operation_group = case_when(
-    #   substr(NCSP, 1, 3) == "JLC" ~ "Pancreas resection",
-    #   substr(NCSP, 1, 3) == "JJB" ~ "Liver resection",
-    #   substr(NCSP, 1, 3) == "JKD" ~ "Biliodigestive anastomosis",
-    #   .default = "Other"),
     operation_group = case_when(
       substr(NCSP, 1, 3) == "JLC" & substr(NCSP, 4, 5) != "30" ~
         "Other pancreas resections",
@@ -52,10 +47,8 @@ registration <-
       substr(NCSP, 1, 3) == "JJB" ~ "Liver resection",
       substr(NCSP, 1, 3) == "JKD" & substr(ICD10, 1, 1) %in% c("C", "D") ~
         "Biliodigestive anastomosis, C & D diagnosis",
-      substr(NCSP, 1, 3) == "JKD" & substr(ICD10, 1, 1) %in% "K" ~
-        "Biliodigestive anastomosis, K diagnosis",
-      substr(NCSP, 1, 3) == "JKD" & !(substr(ICD10, 1, 1) %in% c("C", "D", "K")) ~
-        "Biliodigestive anastomosis, other diagnosis",
+      substr(NCSP, 1, 3) == "JKD" & !(substr(ICD10, 1, 1) %in% c("C", "D")) ~
+        "Biliodigestive anastomosis, benign aethiology",
       .default = "Other"),
   )
 
@@ -78,7 +71,7 @@ regdata_all <- registration %>%
 
 
 regdata <- regdata_all %>%
-  dplyr::filter(#STATUS == 1,
+  dplyr::filter(STATUS == 1,
                 operation_group != "Other") %>%
   dplyr::mutate(
     OPERATION_DATE = as.Date(OPERATION_DATE),
@@ -117,37 +110,6 @@ if (!dir.exists(tabfolder)) {
 
 <<'Registrations', results='asis', echo=FALSE>>=
 
-summary_stats <- regdata |>
-  dplyr::filter(
-    OPERATION_DATE < "2025-01-01") |>
-  dplyr::summarise(
-    N_2024 = n(),
-    Relaparotomy = sum(RELAPAROTOMY == 1 |
-                         RELAPAROTOMY_READMISSION == 1, na.rm = T),
-    Acc4plus = sum(ACCORDION_SCORE > 3),
-    Death30 = sum(IN_HOUSE_DEATH, na.rm = T) +
-      sum(IN_HOUSE_DEATH_READMISSION, na.rm = T),
-    n_lost_to_followup = sum(FOLLOWUP_STATUS == 0, na.rm = T),
-    n90day = sum(FOLLOWUP_STATUS %in% c(1:3)),
-    Death90 = sum(DEATH == 1, na.rm = T),
-    Readmission90_completed = sum(STATUS_READMISSION90==1, na.rm = T),
-    n90day_incl_dead30 = sum(FOLLOWUP_STATUS %in% c(1:3)) + Death30,
-    n90day_alive = sum(FOLLOWUP_STATUS %in% c(1:3, 9) & Deceased == 0),
-    Deceased = sum(Deceased == 1, na.rm = T),
-    .by = operation_group
-  ) |> arrange(operation_group)
-
-summary_stats_all <- regdata |>
-  dplyr::summarise(
-    N_total = n(),
-    .by = operation_group
-  ) |> arrange(operation_group)
-
-summary_stats_all <- merge(summary_stats_all, summary_stats,
-                           by = "operation_group")
-
-write.csv2(summary_stats_all, "summary_stats_all.csv", row.names = F,
-           fileEncoding = "Latin1")
 
 ######## Ny versjon:
 
@@ -187,7 +149,7 @@ summary_stats_all <- regdata |>
 summary_stats_all <- merge(summary_stats_all, summary_stats,
                            by = "operation_group")
 
-summary_stats_all_tr <- summary_stats_all |> tr_summarize_output()
+summary_stats_all_tr <- summary_stats_all |> ethirgast::tr_summarize_output()
 
 write.csv2(summary_stats_all, "summary_stats_all.csv", row.names = F,
            fileEncoding = "Latin1")
@@ -195,15 +157,54 @@ write.csv2(summary_stats_all_tr, "summary_stats_all_transposed.csv", row.names =
            fileEncoding = "Latin1")
 
 
-aux <- regdata |> filter(FOLLOWUP_STATUS %in% c(1:3, 9) & is.na(Deceased)) |>
-  select("OPERATION_DATE", "IN_HOUSE_DEATH", "IN_HOUSE_DEATH_READMISSION",
-         "DEATH", "Deceased", "FOLLOWUP_STATUS",
-         "DEATH_DATE", "IN_HOUSE_DEATH_DATE",
-         "IN_HOUSE_DEATH_DATE_READMISSION")
-tmp <- regdata[ ,c("OPERATION_DATE", "IN_HOUSE_DEATH", "IN_HOUSE_DEATH_READMISSION",
-                   "DEATH", "Deceased","Deceased2",
-                   "DEATH_DATE", "IN_HOUSE_DEATH_DATE",
-                   "IN_HOUSE_DEATH_DATE_READMISSION")] |> filter(is.na(Deceased2))
+diagnosis_other <- regdata |>
+  dplyr::filter(
+    OPERATION_DATE < "2025-01-01",
+    operation_group == "Biliodigestive anastomosis, other diagnosis") |>
+  select(ICD10, ICD10_READMISSION90)
+
+
+# summary_stats <- regdata |>
+#   dplyr::filter(
+#     OPERATION_DATE < "2025-01-01") |>
+#   dplyr::summarise(
+#     N_2024 = n(),
+#     Relaparotomy = sum(RELAPAROTOMY == 1 |
+#                          RELAPAROTOMY_READMISSION == 1, na.rm = T),
+#     Acc4plus = sum(ACCORDION_SCORE > 3),
+#     Death30 = sum(IN_HOUSE_DEATH, na.rm = T) +
+#       sum(IN_HOUSE_DEATH_READMISSION, na.rm = T),
+#     n_lost_to_followup = sum(FOLLOWUP_STATUS == 0, na.rm = T),
+#     n90day = sum(FOLLOWUP_STATUS %in% c(1:3)),
+#     Death90 = sum(DEATH == 1, na.rm = T),
+#     Readmission90_completed = sum(STATUS_READMISSION90==1, na.rm = T),
+#     n90day_incl_dead30 = sum(FOLLOWUP_STATUS %in% c(1:3)) + Death30,
+#     n90day_alive = sum(FOLLOWUP_STATUS %in% c(1:3, 9) & Deceased == 0),
+#     Deceased = sum(Deceased == 1, na.rm = T),
+#     .by = operation_group
+#   ) |> arrange(operation_group)
+#
+# summary_stats_all <- regdata |>
+#   dplyr::summarise(
+#     N_total = n(),
+#     .by = operation_group
+#   ) |> arrange(operation_group)
+#
+# summary_stats_all <- merge(summary_stats_all, summary_stats,
+#                            by = "operation_group")
+#
+# write.csv2(summary_stats_all, "summary_stats_all.csv", row.names = F,
+#            fileEncoding = "Latin1")
+
+# aux <- regdata |> filter(FOLLOWUP_STATUS %in% c(1:3, 9) & is.na(Deceased)) |>
+#   select("OPERATION_DATE", "IN_HOUSE_DEATH", "IN_HOUSE_DEATH_READMISSION",
+#          "DEATH", "Deceased", "FOLLOWUP_STATUS",
+#          "DEATH_DATE", "IN_HOUSE_DEATH_DATE",
+#          "IN_HOUSE_DEATH_DATE_READMISSION")
+# tmp <- regdata[ ,c("OPERATION_DATE", "IN_HOUSE_DEATH", "IN_HOUSE_DEATH_READMISSION",
+#                    "DEATH", "Deceased","Deceased2",
+#                    "DEATH_DATE", "IN_HOUSE_DEATH_DATE",
+#                    "IN_HOUSE_DEATH_DATE_READMISSION")] |> filter(is.na(Deceased2))
 
 @
 
