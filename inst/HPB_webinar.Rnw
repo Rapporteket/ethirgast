@@ -27,17 +27,17 @@ library(dplyr)
 # library(tidyr)
 options(dplyr.summarise.inform = FALSE)
 
-centre <- rapbase::loadRegData("ethirgast", "SELECT * FROM centre")
-mce <- rapbase::loadRegData("ethirgast", "SELECT * FROM mce")
+centre <- rapbase::loadRegData("ethirgast2", "SELECT * FROM centre")
+mce <- rapbase::loadRegData("ethirgast2", "SELECT * FROM mce")
 ninetydays <-
-  rapbase::loadRegData("ethirgast", "SELECT * FROM ninetydays") |>
+  rapbase::loadRegData("ethirgast2", "SELECT * FROM ninetydays") |>
   filter(CENTREID == 1, STATUS == 1)
-patient <- rapbase::loadRegData("ethirgast", "SELECT * FROM patient")
+patient <- rapbase::loadRegData("ethirgast2", "SELECT * FROM patient")
 readmission <-
-  rapbase::loadRegData("ethirgast", "SELECT * FROM readmission") |>
+  rapbase::loadRegData("ethirgast2", "SELECT * FROM readmission") |>
   filter(CENTREID == 1, STATUS == 1)
 registration <-
-  rapbase::loadRegData("ethirgast", "SELECT * FROM registration") |>
+  rapbase::loadRegData("ethirgast2", "SELECT * FROM registration") |>
   filter(CENTREID == 1) |>
   mutate(
     operation_group = case_when(

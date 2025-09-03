@@ -8,17 +8,16 @@
 % \usepackage{amssymb}
 % \usepackage[a4paper]{geometry}
 \usepackage[pdftex, colorlinks, linkcolor=lysblaa, urlcolor=lysblaa]{hyperref}
+\usepackage{array}
+\newcolumntype{R}[1]{>{\raggedleft\let\newline\\\arraybackslash\hspace{0pt}}p{#1}}
+\newcolumntype{L}[1]{>{\raggedright\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{C}[1]{>{\centering\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
 
 \title{Ethirgast Monthly Report}
-% \author{Ethirgast}
+\author{Ethirgast}
 
-%setter grå skrift fremfort sort
 \usepackage{xcolor}
 \usepackage{graphicx}
-% \pagestyle{myheadings}
-% \definecolor{lysblaa}{rgb}{0.27,0.51,0.71}
-% \definecolor{moerkgraa}{rgb}{0.25,0.25,0.25}
-% \color{moerkgraa}
 
 <<'initOpts',include=FALSE>>=
 knitr::opts_chunk$set(warnings=FALSE,echo=FALSE)
@@ -32,17 +31,17 @@ rm(list=ls())
 library(dplyr)
 options(dplyr.summarise.inform = FALSE)
 
-centre <- rapbase::loadRegData("ethirgast", "SELECT * FROM centre")
-mce <- rapbase::loadRegData("ethirgast", "SELECT * FROM mce")
+centre <- rapbase::loadRegData("ethirgast2", "SELECT * FROM centre")
+mce <- rapbase::loadRegData("ethirgast2", "SELECT * FROM mce")
 ninetydays <-
-  rapbase::loadRegData("ethirgast", "SELECT * FROM ninetydays") %>%
+  rapbase::loadRegData("ethirgast2", "SELECT * FROM ninetydays") %>%
   filter(CENTREID == 1)
-patient <- rapbase::loadRegData("ethirgast", "SELECT * FROM patient")
+patient <- rapbase::loadRegData("ethirgast2", "SELECT * FROM patient")
 readmission <-
-  rapbase::loadRegData("ethirgast", "SELECT * FROM readmission")%>%
+  rapbase::loadRegData("ethirgast2", "SELECT * FROM readmission")%>%
   filter(CENTREID == 1)
 registration <-
-  rapbase::loadRegData("ethirgast", "SELECT * FROM registration") %>%
+  rapbase::loadRegData("ethirgast2", "SELECT * FROM registration") %>%
   filter(CENTREID == 1) %>%
   mutate(
     operation_group = case_when(
@@ -50,7 +49,7 @@ registration <-
          (substr(NCSP, 1, 3) == "JFB" & (substr(NCSP, 4, 5) %in% 20:64))) ~ "Colonic resection",
       substr(NCSP, 1, 3) == "JGB" ~ "Rectal resection",
       substr(NCSP, 1, 3) == "JCC" ~ "Oesofagus resection",
-      substr(NCSP, 1, 3) %in% c("JDC", "JDD") ~ "Ventricle resection",
+      substr(NCSP, 1, 3) %in% c("JDC", "JDD") ~ "Gastric resection",
       substr(NCSP, 1, 3) %in% c("JJB") ~ "Liver resection",
       substr(NCSP, 1, 5) %in% c("JLC30","JLC31") ~ "Whipple's procedure",
       substr(NCSP, 1, 5) %in% c('JLC10','JLC11', 'JLC00',
@@ -231,6 +230,7 @@ followup90 <- regdata %>%
 
 print(xtable::xtable(
   followup90, digits=1,
+  align = c("l", "L{1.5in}", rep('r', ncol(followup90)-1)),
   caption='Status 90-day followup per operation group. Only completed forms included'),
   include.rownames=FALSE)
 
@@ -315,6 +315,7 @@ followup_v2 <- regdata %>%
 
 print(xtable::xtable(
   followup_v2, digits=1,
+  align = c("l", "L{1.5in}", rep('r', ncol(followup_v2)-1)),
   caption=paste0('N is the number of complete admission forms with operation date 110
   days prior to most resent registration, while N\\_complete\\_followup is the number
   of closed ninety days forms among the N. N\\_followed\\_up is the number
