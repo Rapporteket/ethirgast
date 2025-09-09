@@ -224,14 +224,15 @@ followup90 <- regdata %>%
             "Yes - phone" = sum(FOLLOWUP_STATUS==2),
             "Yes - relatives" = sum(FOLLOWUP_STATUS==3),
             "No" = sum(FOLLOWUP_STATUS==0),
-            N =n(),
+            N = sum(FOLLOWUP_STATUS %in% 0:3),
+            # N =n(),
             .by = operation_group) %>%
   janitor::adorn_totals()
 
 print(xtable::xtable(
   followup90, digits=1,
   align = c("l", "L{1.5in}", rep('r', ncol(followup90)-1)),
-  caption='Status 90-day followup per operation group. Only completed forms included'),
+  caption='Status 90-day followup per operation group. Only completed forms included, and only patients where followup is indicated.'),
   include.rownames=FALSE)
 
 deceased90 <- dplyr::bind_rows(
