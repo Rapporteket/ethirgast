@@ -81,7 +81,6 @@ regdata_all <- registration %>%
     PatientAge = lubridate::year(lubridate::as.period(lubridate::interval(
       start = BIRTH_DATE, end = OPERATION_DATE))))
 
-
 regdata <- regdata_all %>%
   dplyr::filter(STATUS == 1) %>%
   dplyr::mutate(
@@ -93,14 +92,16 @@ regdata <- regdata_all %>%
 figstr <- 0.61
 tmp <- Sys.setlocale(category = "LC_ALL", locale = "nb_NO.UTF-8")
 
-figfolder <- paste0("C:/Users/kth200/OneDrive - Helse Nord RHF/Dokumenter/regdata/ethirgast/fig/")
+figfolder <- paste0("C:/regdata/ethirgast/fig/")
 if (!dir.exists(figfolder)) {
   dir.create(figfolder)
 }
-tabfolder <- paste0("C:/Users/kth200/OneDrive - Helse Nord RHF/Dokumenter/regdata/ethirgast/tab/")
+tabfolder <- paste0("C:/regdata/ethirgast/tab/")
 if (!dir.exists(tabfolder)) {
   dir.create(tabfolder)
 }
+write.csv(regdata_all, paste0(tabfolder, "ethirgastdata.csv"), row.names = FALSE)
+
 @
 
 \begin{document}
@@ -117,7 +118,8 @@ outfile <- paste0(figfolder, outfile)
 gr <- c(0, seq(20, 80, 10)+1, 120)
 regdata$VariabelGr <- cut(regdata$PatientAge, breaks=gr, include.lowest=TRUE, right=FALSE)
 grtxt <- c('0-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '80+')
-tmp <- regdata %>% dplyr::filter(operation_group != "Other")
+tmp <- regdata %>% dplyr::filter(operation_group != "Other",
+                                 GENDER %in% 1:2)
 AntHoved <- table(tmp[, c("GENDER", "VariabelGr")])
 NHoved <- rowSums(AntHoved)
 FigTypUt <- rapFigurer::figtype(outfile=outfile, fargepalett="BlaaOff", pointsizePDF=12)
@@ -137,7 +139,7 @@ if ( outfile != '') {dev.off()}
 \begin{figure}[ht]
 \centering
 \includegraphics[width=\Sexpr{figstr}\textwidth]{\Sexpr{figfolder}PatientAge.pdf}
-\caption{Number of completed registrations grouped by age and gender}
+\caption{Number of completed obligatory registrations grouped by age and gender}
 \end{figure}
 
 <<'Table: Number of registrations', results='asis', echo=FALSE>>=
