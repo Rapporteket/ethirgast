@@ -140,7 +140,8 @@ registrations increase.
 outfile <- "PatientAge.pdf"
 outfile <- paste0(figfolder, outfile)
 gr <- c(0, seq(20, 80, 10)+1, 120)
-regdata$VariabelGr <- cut(regdata$PatientAge, breaks=gr, include.lowest=TRUE, right=FALSE)
+regdata$VariabelGr <- cut(regdata$PatientAge, breaks=gr,
+                          include.lowest=TRUE, right=FALSE)
 grtxt <- c('0-20', '21-30', '31-40', '41-50', '51-60', '61-70', '71-80', '80+')
 tmp <- regdata %>% dplyr::filter(operation_group != "Other",
                                  GENDER %in% 1:2)
@@ -181,7 +182,8 @@ kjonn_opgr <- regdata |>  dplyr::filter(operation_group != "Other",
   dplyr::group_by(VariabelGr) |>
   dplyr::group_modify(~ .x |> janitor::adorn_totals()) |> ungroup() |>
   dplyr::mutate(var = paste0(sprintf("%.1f", men/N*100), " % (N=", N, ")")) |>
-  mutate(operation_group = forcats::fct_relevel(operation_group, "Total", after = Inf)) |>
+  mutate(operation_group = forcats::fct_relevel(
+    operation_group, "Total", after = Inf)) |>
   select(-men, -N) |>
   arrange(VariabelGr) |>
   tidyr::pivot_wider(names_from = VariabelGr, values_from = var, values_fill = "") |>
@@ -195,7 +197,7 @@ write.csv2(kjonn_opgr, paste0(figfolder, "kjonn.csv"), row.names = F,
 #       include.rownames=FALSE)
 
 Tabell <- as.data.frame(table(regdata$operation_group, useNA = 'ifany')) %>%
-  arrange(-Freq)
+  arrange(-Freq)|> janitor::adorn_totals()
 names(Tabell) <- c("Operation", "N")
 
 print(xtable::xtable(Tabell, digits=0,
