@@ -61,7 +61,7 @@ comments <- unknown |>
 
 
 
-
+library(dplyr)
 
 registration <-
   rapbase::loadRegData("ethirgast", "SELECT * FROM registration") %>%
@@ -106,13 +106,13 @@ ssn_all_db <- trimws(patient$SSN)
 
 missing_vec <- setdiff(alle_addis$ssn, ssn_all_db)
 
-missing <- data.frame(snn = setdiff(ssn$mrn.eden.2024, ssn_all_db))
-write.csv(missing, paste0(tabfolder, "missing.csv"), row.names = FALSE)
+# missing <- data.frame(snn = setdiff(ssn$mrn.eden.2024, ssn_all_db))
+# write.csv(missing, paste0(tabfolder, "missing.csv"), row.names = FALSE)
+#
+# nomatch <- data.frame(snn = setdiff(ssn_all_db, ssn$mrn.eden.2024))
 
-nomatch <- data.frame(snn = setdiff(ssn_all_db, ssn$mrn.eden.2024))
 
-
-df <- pasient
+df <- patient |> select(ID, SSN, PHONE, ALT_PHONE)
 v <- missing_vec
 
 library(dplyr)
@@ -1135,7 +1135,7 @@ fra_addis_mars2026 <- c(1321973,	105366,	1211495,	1222051,	1223832,
                         1296404,	1266796,	1081113,	1294816,	1294346,
                         1294210,	1287671,	1293390,	1293388)
 setdiff(fra_addis_mars2026, patient$SSN)
-
+intersect(fra_addis_mars2026, as.numeric(mangler_fortsatt))
 
 pasientliste <- registration |>
   merge(mce[,c("MCEID", "PATIENT_ID")], by = "MCEID",
@@ -1146,5 +1146,7 @@ pasientliste <- registration |>
 table(pasientliste$operation_group, useNA = 'ifany')
 
 
+nymatch <- match_substrings(df, fra_addis_mars2026)
+mangler_fortsatt <- setdiff(fra_addis_mars2026, nymatch$matched_pattern)
 
 
