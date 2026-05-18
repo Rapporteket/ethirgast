@@ -35,11 +35,13 @@ centre <- rapbase::loadRegData("ethirgast", "SELECT * FROM centre")
 mce <- rapbase::loadRegData("ethirgast", "SELECT * FROM mce")
 ninetydays <-
   rapbase::loadRegData("ethirgast", "SELECT * FROM ninetydays") %>%
-  filter(CENTREID == 1)
+  filter(CENTREID == 1,
+         STATUS == 1)
 patient <- rapbase::loadRegData("ethirgast", "SELECT * FROM patient")
 readmission <-
   rapbase::loadRegData("ethirgast", "SELECT * FROM readmission") %>%
-  filter(CENTREID == 1)
+  filter(CENTREID == 1,
+         STATUS == 1)
 registration <-
   rapbase::loadRegData("ethirgast", "SELECT * FROM registration") %>%
   filter(CENTREID == 1) %>%
@@ -104,12 +106,19 @@ tabfolder <- paste0("C:/Users/kth200/regdata/ethirgast/tab/")
 if (!dir.exists(tabfolder)) {
   dir.create(tabfolder)
 }
-# write.csv(regdata_all, paste0(tabfolder, "ethirgastdata_flattened.csv"), row.names = FALSE)
-# write.csv(registration, paste0(tabfolder, "registration.csv"), row.names = FALSE)
-# write.csv(readmission, paste0(tabfolder, "followup30.csv"), row.names = FALSE)
-# write.csv(ninetydays, paste0(tabfolder, "followup90.csv"), row.names = FALSE)
-# write.csv(mce, paste0(tabfolder, "mce.csv"), row.names = FALSE)
-# write.csv(patient, paste0(tabfolder, "patient.csv"), row.names = FALSE)
+openxlsx::write.xlsx(
+  regdata_all,
+  paste0(tabfolder, "ethirgastdata_flattened_", Sys.Date(), ".xlsx"))
+openxlsx::write.xlsx(registration,
+          paste0(tabfolder, "registration_", Sys.Date(), ".xlsx"))
+openxlsx::write.xlsx(readmission,
+          paste0(tabfolder, "followup30_", Sys.Date(), ".xlsx"))
+openxlsx::write.xlsx(ninetydays,
+          paste0(tabfolder, "followup90_", Sys.Date(), ".xlsx"))
+openxlsx::write.xlsx(mce,
+          paste0(tabfolder, "mce_", Sys.Date(), ".xlsx"))
+openxlsx::write.xlsx(patient,
+          paste0(tabfolder, "patient_", Sys.Date(), ".xlsx"))
 
 # datasubset <- registration |>
 #   merge(mce[,c("MCEID", "PATIENT_ID")], by = "MCEID",
@@ -133,8 +142,7 @@ if (!dir.exists(tabfolder)) {
 
 This document contains some summary statistics for Ethirgast and is based on
 operations performed at St. Paul's in the period \Sexpr{min(regdata$OPERATION_DATE)}
-to \Sexpr{max(regdata$OPERATION_DATE)}. It will be expanded as the number of
-registrations increase.
+to \Sexpr{max(regdata$OPERATION_DATE)}.
 
 <<'Fig. Age distribution', include=FALSE, echo=FALSE, eval=T>>=
 outfile <- "PatientAge.pdf"
@@ -246,34 +254,20 @@ print(xtable::xtable(reg_overview, digits=0,
 
 <<'Preliminary results', results='asis', echo=FALSE>>=
 
-# relap1 <- regdata %>%
-#   dplyr::filter(#STATUS_READMISSION == 1,
-#                 operation_group != "Other") %>%
-#   dplyr::mutate(relap = pmax(RELAPAROTOMY, RELAPAROTOMY_READMISSION,
-#                              na.rm = TRUE)) # old
-
 relap <- regdata %>%
   dplyr::filter(operation_group != "Other"#,
                 #OPERATION_DATE < max(as.Date(regdata$OPERATION_DATE)) -
                 #  lubridate::days(40)
   ) %>%
-  dplyr::mutate(relap = pmax(RELAPAROTOMY,
-                             # RELAPAROTOMY_NO, # Spør register om RELAPAROTOMY_NO
-                             RELAPAROTOMY_READMISSION,
-                             # RELAPAROTOMY_NO_READMISSION,
-                             na.rm = TRUE))
-
-# ukjent <- relap |> filter(MCEID %in% setdiff(MCEID, relap1$MCEID)) |>
-#   select(STATUS_READMISSION, RELAPAROTOMY, RELAPAROTOMY_NO,
-#          RELAPAROTOMY_READMISSION,
-#          RELAPAROTOMY_NO_READMISSION, IN_HOUSE_DEATH,
-#          IN_HOUSE_DEATH_READMISSION)
+  dplyr::mutate(
+    relap = pmax(RELAPAROTOMY,
+                 # RELAPAROTOMY_NO, # Spør register om RELAPAROTOMY_NO
+                 RELAPAROTOMY_READMISSION,
+                 # RELAPAROTOMY_NO_READMISSION,
+                 na.rm = TRUE))
 
 tabell1 <- relap %>%
   summarise(n_relap = sum(relap),
-            # relap_index = sum(RELAPAROTOMY, na.rm = T),
-            # relap_readm = sum(RELAPAROTOMY_READMISSION, na.rm = T),
-            # begge = sum(RELAPAROTOMY & RELAPAROTOMY_READMISSION, na.rm = T),
             N = n(),
             .by = operation_group) %>%
   janitor::adorn_totals() %>%
@@ -284,13 +278,8 @@ print(xtable::xtable(
   caption='Relaparatomy/laparoscopy rate per operation group. Nominator: All
   patients with relap registered on either index form or 30d follow-up.
   Denominator: Number of complete admission forms with minimum of 40
-  days follow-up time'),
+  days follow-up time. All patients with a completed admission form are included, regardless of whether they are deceased or not.'),
   include.rownames=FALSE)
-#
-# print(xtable::xtable(
-#   tabell2, digits=1,
-#   caption='Relaparatomy/laparoscopy rate per operation group. Selection: All patients with a completed readmission/30-day followup, and with elective surgery, whoecog 0 or 1, and malign diagnosis'),
-#   include.rownames=FALSE)
 
 followup90 <- regdata %>%
   dplyr::filter(STATUS_READMISSION90 == 1,
@@ -304,64 +293,6 @@ followup90 <- regdata %>%
             .by = operation_group) %>%
   janitor::adorn_totals()
 
-print(xtable::xtable(
-  followup90, digits=1,
-  align = c("l", "L{1.5in}", rep('r', ncol(followup90)-1)),
-  caption='Status 90-day followup per operation group. Only completed forms included, and only patients where followup is indicated.'),
-  include.rownames=FALSE)
-
-# deceased90 <- dplyr::bind_rows(
-#   regdata %>% dplyr::filter(STATUS_READMISSION90 == 1,
-#                             operation_group != "Other",
-#                             FOLLOWUP_STATUS %in% 1:3),
-#   regdata %>% dplyr::filter(STATUS_READMISSION == 1,
-#                             OPERATION_DATE < max(as.Date(regdata$OPERATION_DATE)) -
-#                               lubridate::days(60),
-#                             operation_group != "Other",
-#                             IN_HOUSE_DEATH_READMISSION == 1)) %>%
-#   dplyr::bind_rows(
-#     regdata %>% dplyr::filter(STATUS_READMISSION == 1,
-#                               OPERATION_DATE < max(as.Date(regdata$OPERATION_DATE)) -
-#                                 lubridate::days(90),
-#                               operation_group != "Other",
-#                               IN_HOUSE_DEATH == 1)) %>%
-#   # dplyr::mutate(Deceased = pmax(DEATH, IN_HOUSE_DEATH_READMISSION, IN_HOUSE_DEATH, na.rm = TRUE)) %>%
-#   # dplyr::select(OPERATION_DATE, DEATH, IN_HOUSE_DEATH_READMISSION, IN_HOUSE_DEATH, Deceased)
-#   dplyr::summarise(
-#     n_dead = sum(DEATH | IN_HOUSE_DEATH_READMISSION | IN_HOUSE_DEATH, na.rm = TRUE),
-#     N = n(),
-#     .by = operation_group) %>%
-#   janitor::adorn_totals() %>%
-#   dplyr::mutate(pst_dead90 = n_dead/N*100)
-
-# deceased90 <- regdata |>
-#   dplyr::filter(OPERATION_DATE < max(as.Date(regdata$OPERATION_DATE)) -
-#                   lubridate::days(110),
-#                 operation_group != "Other",
-#                 URGENCY == 1) |>
-#   summarise(
-#     # n_mort_base = sum(IN_HOUSE_DEATH, na.rm = T),
-#     # n_mort_30 = sum(IN_HOUSE_DEATH_READMISSION, na.rm = T),
-#     # n_mort_90 = sum(DEATH == 1, na.rm = T),
-#     N =n(),
-#     n_mort = sum(IN_HOUSE_DEATH | IN_HOUSE_DEATH_READMISSION |
-#                    DEATH == 1, na.rm = T),
-#     unknown = sum(
-#       IN_HOUSE_DEATH == 0 &
-#         (IN_HOUSE_DEATH_READMISSION == 0 | is.na(IN_HOUSE_DEATH_READMISSION)) &
-#         (DEATH == 9 | is.na(DEATH))),
-#     N_adjust = N - unknown,
-#     mort90_pst = (n_mort + unknown)/N*100 |> round(1),
-#     mort90_pst_adjust = n_mort/N_adjust*100 |> round(1),
-#     .by = operation_group) |>
-#   arrange(-N)
-#
-# print(xtable::xtable(
-#   deceased90, digits=1,
-#   align = c("l", "L{1.5in}", rep('r', ncol(deceased90)-1)),
-#   caption = "N is the number of included patients with a minimum of 110 days follow-up time. \\emph{n\\_mort} is the number of confirmed
-#   deceased patients within 90 days. unknown is the number of patients that are lost to follow-up at 90 days (not confirmed alive or dead). \\emph{N\\_adjust} isconfirmed follow-up at 90 days. \\emph{mort90\\_pst} is the percentage of patients that are either confirmed dead OR lost to follow-up among all operated patients (N). \\emph{mort90\\_pst\\_adjust} is the percentage of confirmed dead patients among patients with known status after 90 days (\\emph{N\\_adjust})."),
-#   include.rownames=FALSE)
 
 tab_deceased90_all <- regdata |>
   dplyr::filter(#OPERATION_DATE < max(as.Date(regdata$OPERATION_DATE)) -
@@ -397,39 +328,45 @@ print(xtable::xtable(
   include.rownames=FALSE)
 
 tab_deceased90 <- regdata |>
-  dplyr::filter(#OPERATION_DATE < max(as.Date(regdata$OPERATION_DATE)) -
-    #  lubridate::days(110),
-    operation_group != "Other") |>
+  dplyr::filter(operation_group != "Other") |>
   summarise(
     N =n(),
     n_mort = sum(IN_HOUSE_DEATH | IN_HOUSE_DEATH_READMISSION |
                    DEATH == 1, na.rm = T),
     unknown = sum(
       IN_HOUSE_DEATH == 0 &
-        (IN_HOUSE_DEATH_READMISSION == 0 | is.na(IN_HOUSE_DEATH_READMISSION)) &
+        (IN_HOUSE_DEATH_READMISSION == 0 |
+           is.na(IN_HOUSE_DEATH_READMISSION)) &
         (DEATH == 9 | is.na(DEATH))),
-    .by = c(operation_group, op_year, URGENCY) )|>
-  # arrange(-N) |>
+    .by = c(operation_group, URGENCY)) |>
+  mutate(worstcase = n_mort+unknown) |>
+  group_by(URGENCY) |>
+  dplyr::group_modify(~ .x |> janitor::adorn_totals()) |>
+  ungroup() |>
   mutate(
     conf_dead = paste0(n_mort, " (", sprintf('%.1f', n_mort/N*100), "%)"),
     lost2followup = paste0(
       unknown, " (", sprintf('%.1f', unknown/N*100), "%)"),
     worstcase = paste0(
-      n_mort+unknown, " (", sprintf('%.1f', (n_mort+unknown)/N*100), "%)")
+      worstcase, " (", sprintf('%.1f', (worstcase)/N*100), "%)")
   ) |>
-  select(operation_group, op_year, URGENCY, N, conf_dead, lost2followup, worstcase)
+  select(operation_group, URGENCY, N, conf_dead, lost2followup, worstcase)
 
 print(xtable::xtable(
-  tab_deceased90 |> filter(URGENCY == 1) |> select(-URGENCY) |>
-    arrange(op_year, operation_group),
+  tab_deceased90 |>
+    filter(URGENCY == 1) |>
+    select(-URGENCY) |>
+    arrange(operation_group == "Total"),
   digits=0,
   align = c("l", "L{1.5in}", rep('r', ncol(tab_deceased90)-2)),
   caption = "Elective. N is the number of included patients with a minimum of 110 days follow-up time. lost2followup is the number of patients that are lost to follow-up at 90 days (not confirmed alive or dead)."),
   include.rownames=FALSE)
 
 print(xtable::xtable(
-  tab_deceased90 |> filter(URGENCY == 2) |> select(-URGENCY) |>
-    arrange(op_year, operation_group),
+  tab_deceased90 |>
+    filter(URGENCY == 2) |>
+    select(-URGENCY) |>
+    arrange(operation_group == "Total"),
   digits=0,
   align = c("l", "L{1.5in}", rep('r', ncol(tab_deceased90)-2)),
   caption = "Emergency surgery. N is the number of included patients with a minimum of 110 days follow-up time. lost2followup is the number of patients that are lost to follow-up at 90 days (not confirmed alive or dead)."),
@@ -437,10 +374,9 @@ print(xtable::xtable(
 
 anastomosis_leakage <- regdata %>%
   dplyr::filter(ANASTOMOSIS ==1,
-                #OPERATION_DATE < max(as.Date(regdata$OPERATION_DATE)) -
-                #  lubridate::days(40),
                 operation_group != "Other") %>%
-  dplyr::mutate(leak = ANASTOMOTIC_LEAK | RELAPAROTOMY_YES_READMISSION == 1) %>%
+  dplyr::mutate(leak = ANASTOMOTIC_LEAK |
+                  RELAPAROTOMY_YES_READMISSION == 1) %>%
   dplyr::summarise(
     n_leak = sum(leak, na.rm = TRUE),
     N = n(),
@@ -450,46 +386,24 @@ anastomosis_leakage <- regdata %>%
 
 print(xtable::xtable(
   anastomosis_leakage, digits=1,
-  caption='Anastomosis leakage (within 30 days). Selection: Denominator consists
-  of all patients with a minimum of 40 days follow-up time who have a new
-  anastomosis created. The nominator consists of all patients in the denominator
-  that are registered with anastomosis leakage in either the registration or
-  30d readmission form.'),
+  caption='Anastomosis leakage (within 30 days).
+  Selection: Denominator consists of all patients with a minimum
+  of 40 days follow-up time who have a new
+  anastomosis created. The nominator consists of all patients
+  in the denominator that are registered with anastomosis leakage
+  in either the registration or 30d readmission form.'),
   include.rownames=FALSE)
 
 
-# anastomosis_leakage <- regdata %>%
-#   dplyr::filter(ANASTOMOSIS ==1,
-#                 STATUS_READMISSION == 1 | IN_HOUSE_DEATH,
-#                 operation_group != "Other") %>%
-#   dplyr::mutate(leak = ANASTOMOTIC_LEAK | RELAPAROTOMY_YES_READMISSION == 1) %>%
-#   dplyr::summarise(
-#     n_leak = sum(leak, na.rm = TRUE),
-#     N = n(),
-#     .by = operation_group) %>%
-#   janitor::adorn_totals() %>%
-#   dplyr::mutate(pst_leak = n_leak/N*100)
-#
-# print(xtable::xtable(
-#   anastomosis_leakage, digits=1,
-#   caption='Anastomosis leakage (within 30 days). Selection: Same as above, but with the additional constaint that the readmission form has to be completed.'),
-#   include.rownames=FALSE)
-
-
-followup_v2 <- regdata %>%
-  # dplyr::filter(operation_group != "Other"#,
-  #               #OPERATION_DATE < max(as.Date(regdata$OPERATION_DATE)) -
-  #               #  lubridate::days(110)
-  # ) %>%
+followup <- regdata %>%
   dplyr::summarise(
     N = n(),
-    N_complete_followup = sum(
-      STATUS_READMISSION90 == 1 |
-        IN_HOUSE_DEATH == 1 |
-        IN_HOUSE_DEATH_READMISSION == 1, na.rm = TRUE),
-    N_followed_up = sum((
-      FOLLOWUP_STATUS %in% 1:3 &
-        STATUS_READMISSION90 == 1) |
+    # N_complete_followup = sum(
+    #   STATUS_READMISSION90 == 1 |
+    #     IN_HOUSE_DEATH == 1 |
+    #     IN_HOUSE_DEATH_READMISSION == 1, na.rm = TRUE),
+    N_followed_up = sum(
+      (FOLLOWUP_STATUS %in% 1:3 | DEATH %in% 0:1) |
         IN_HOUSE_DEATH == 1 |
         IN_HOUSE_DEATH_READMISSION == 1, na.rm = TRUE),
     .by = operation_group) %>%
@@ -497,79 +411,41 @@ followup_v2 <- regdata %>%
   dplyr::mutate(pst_followed_up = N_followed_up/N*100)
 
 print(xtable::xtable(
-  followup_v2, digits=1,
-  align = c("l", "L{1.5in}", rep('r', ncol(followup_v2)-1)),
-  caption=paste0('N is the number of complete admission forms with minimum of 110
-  days follow-up time, while N\\_complete\\_followup is the number
-  of cases with either a closed ninety days forms or registered as dead in index stay
-  or 30 day follow-up among the N. N\\_followed\\_up is the number
-  forms where the patient has been followed up among N\\_complete\\_followup.
-  Being registered as dead in index stay or 30 day follow-up counts as a complete follow-up.
+  followup |> select(-N_complete_followup),
+  digits=1,
+  align = c("l", "L{1.5in}", rep('r', ncol(followup_v2)-2)),
+  caption=paste0('N is the number of complete admission forms
+  with minimum of 110 days follow-up time. while N\\_complete\\_followup
+  is the number of cases with either a closed ninety days form or
+  registered as dead in index stay or 30 day follow-up among the N.
+  N\\_followed\\_up is the number forms where the patient has been
+  followed up among N\\_complete\\_followup. Being registered
+  as dead
+  in index stay or 30 day follow-up counts as a complete follow-up.
   pst\\_followed\\_up is the corresponding percetage.')),
   include.rownames=FALSE)
 
 
-followup_v3 <- regdata_all %>%
-  dplyr::filter(STATUS == 1) %>%
-  dplyr::summarise(
-    N = n(),
-    N_complete_followup = sum(
-      STATUS_READMISSION90 == 1 |
-        IN_HOUSE_DEATH == 1 |
-        IN_HOUSE_DEATH_READMISSION == 1, na.rm = TRUE),
-    N_followed_up = sum((
-      (FOLLOWUP_STATUS %in% 1:3 | DEATH %in% 0:1) &
-        STATUS_READMISSION90 == 1) |
-        IN_HOUSE_DEATH == 1 |
-        IN_HOUSE_DEATH_READMISSION == 1, na.rm = TRUE),
-    .by = operation_group) %>%
-  arrange(-N) |>
-  janitor::adorn_totals()
+utforsk <- regdata |> filter(is.na(FOLLOWUP_STATUS),
+                             is.na(DEATH)) |>
+  select(IN_HOUSE_DEATH, IN_HOUSE_DEATH_READMISSION, OPERATION_DATE)
 
+utforsk2 <- regdata |>
+  mutate(fulgtopp = (FOLLOWUP_STATUS %in% 1:3 | DEATH %in% 0:1) |
+           IN_HOUSE_DEATH == 1 |
+           IN_HOUSE_DEATH_READMISSION == 1,
+         fulgtopp = ifelse(is.na(fulgtopp), FALSE, fulgtopp))
 
-followup_v4 <- followup_v3 |> select(-N_followed_up)
-
-print(xtable::xtable(
-  followup_v4, digits=1,
-  align = c("l", "L{1.5in}", rep('r', ncol(followup_v4)-1)),
-  caption=paste0('N is the number of complete admission forms,
-  while N\\_complete\\_followup is the number of cases with either a
-  closed ninety day form or with patient registered as dead in index stay
-  or 30 day follow-up.')),
-  include.rownames=FALSE)
-
-print(xtable::xtable(
-  followup_v3, digits=1,
-  align = c("l", "L{1.5in}", rep('r', ncol(followup_v3)-1)),
-  caption=paste0('N is the number of complete admission forms,
-  while N\\_complete\\_followup is the number of cases with either a
-  closed ninety day form or with patient registered as dead in index stay
-  or 30 day follow-up. N\\_followed\\_up is similar to
-  N\\_complete\\_followup, but with the additional requirement that for
-  patients not registered as dead at index stay or at 30 days, the
-  question "Has patient been followed up for status at 90 days?"
-  is answered positively OR that the question "Patient confirmed to be
-  deceased at 90 day follow-up?" is answered yes or no, i.e. not unknown.')),
-  include.rownames=FALSE)
-
-
-# IN_HOUSE_DEATH
-# IN_HOUSE_DEATH_DATE
-# IN_HOUSE_DEATH_READMISSION
-# IN_HOUSE_DEATH_DATE_READMISSION
-# DEATH
-# DEATH_DATE
-
-tmp <- regdata_all %>%
-  dplyr::filter(STATUS == 1) |>
-    mutate(status_kombo = pmax(STATUS_READMISSION90,
-        IN_HOUSE_DEATH,
-        IN_HOUSE_DEATH_READMISSION, na.rm = T)
-    ) |>
-  filter(status_kombo != 1) |>
-  select(PATIENT_ID, MCEID, OPERATION_DATE, IN_HOUSE_DEATH,
-         IN_HOUSE_DEATH_READMISSION,
-         DEATH, STATUS_READMISSION90)
+# tmp <- regdata_all %>%
+#   dplyr::filter(STATUS == 1) |>
+#   mutate(status_kombo = pmax(STATUS_READMISSION90,
+#                              IN_HOUSE_DEATH,
+#                              IN_HOUSE_DEATH_READMISSION, na.rm = T)
+#   ) |>
+#   filter(status_kombo != 1) |>
+#   select(PATIENT_ID, MCEID, OPERATION_DATE, IN_HOUSE_DEATH,
+#          IN_HOUSE_DEATH_READMISSION,
+#          DEATH, STATUS_READMISSION90)
 
 
 
@@ -581,6 +457,3 @@ tmp <- regdata_all %>%
 
 \end{document}
 
-
-% 'Deceased after 90 days. Selection: Denominator consists of all patients who have a completed
-%   ninety day form with a positive answer to the question "Has patient been followed up?". In addition, patients who are registered as deceased In-house (90 days prior to most resent registration) or In-house readmission (60 days prior to most resent registration) are included. The nominator consists of all patients in the denominator that are registered as deceased on either registration, readmission or ninetyday-form.'
