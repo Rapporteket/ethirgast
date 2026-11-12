@@ -1,15 +1,17 @@
 
 rm(list = ls())
 
-df <- read.csv("C:/Users/kth200/regdata/ethirgast/accord/ACCORD_DATA_2025-11-21_1034.csv",
-               header = TRUE,
-               sep = ";",
-               stringsAsFactors = FALSE)
+df <- read.csv(
+  "C:/Users/kth200/regdata/accord/ACCORD_DATA_2025-11-21_1034.csv",
+  header = TRUE,
+  sep = ";",
+  stringsAsFactors = FALSE)
 
-dict_df <- read.csv("C:/Users/kth200/regdata/ethirgast/accord/ACCORD_DataDictionary_2025-11-27.csv",
-                    header = TRUE,
-                    sep = ",",
-                    stringsAsFactors = FALSE)
+dict_df <- read.csv(
+  "C:/Users/kth200/regdata/accord/ACCORD_DataDictionary_2025-11-27.csv",
+  header = TRUE,
+  sep = ",",
+  stringsAsFactors = FALSE)
 
 
 
@@ -29,9 +31,8 @@ extract_codes_labels_piped <- function(
   # Ensure required pkgs exist
   if (!requireNamespace("dplyr", quietly = TRUE) ||
       !requireNamespace("stringr", quietly = TRUE) ||
-      !requireNamespace("purrr", quietly = TRUE) ||
-      !requireNamespace("tibble", quietly = TRUE)) {
-    stop("Please install the packages: dplyr, stringr, purrr, tibble.", call. = FALSE)
+      !requireNamespace("purrr", quietly = TRUE)) {
+    stop("Please install the packages: dplyr, stringr, purrr.", call. = FALSE)
   }
 
   # 1) Pull the raw choices string for the variable
@@ -42,7 +43,7 @@ extract_codes_labels_piped <- function(
 
   # Guard: no choices
   if (is.null(choices_str) || is.na(choices_str) || choices_str == "") {
-    return(tibble::tibble(code = character(), label = character()))
+    return(dplyr::tibble(code = character(), label = character()))
   }
 
   # Normalize line endings (in case the choices span lines)
@@ -61,7 +62,7 @@ extract_codes_labels_piped <- function(
     purrr::discard(\(chunk) chunk == "") |>
     purrr::map(\(chunk) {
       parts <- stringr::str_split_fixed(chunk, "\\s*,\\s*", n = 2)
-      tibble::tibble(
+      dplyr::tibble(
         code  = stringr::str_trim(parts[, 1]),
         label = stringr::str_trim(parts[, 2])
       )
@@ -78,7 +79,7 @@ extract_codes_labels_piped <- function(
 diagnose <- extract_codes_labels_piped(dict_df, "adm_diagn")
 diagnose$label[match(df$adm_diagn, diagnose$code)]
 
-
+ncsp <- extract_codes_labels_piped(dict_df, "surg_nscp")
 
 
 
